@@ -28,7 +28,6 @@
         let manifestFiles = [];
 async function init() {
             try {
-                // Add a timestamp cache-buster so manifest.json is never cached
                 const cacheBuster = '?v=' + Date.now();
                 const res = await fetch('docs/manifest.json' + cacheBuster);
                 manifestFiles = await res.json();
@@ -50,9 +49,8 @@ async function init() {
             manifestFiles.forEach(file => {
                 const docName = file.replace('.md', '');
                 const li = document.createElement('li');
-                li.textContent = docName;
+                li.textContent = docName === 'index' ? 'Home' : docName;
                 
-                // Clicking updates the hash (e.g., #getting-started)
                 li.onclick = () => {
                     window.location.hash = docName === 'index' ? '' : docName;
                 };
@@ -62,7 +60,6 @@ async function init() {
 
         async function loadMarkdown(filename) {
             try {
-                // Also add cache-busting here so your .md updates show up instantly
                 const cacheBuster = '?v=' + Date.now();
                 const response = await fetch('docs/' + filename + cacheBuster);
                 if (!response.ok) throw new Error("File not found");
@@ -73,7 +70,6 @@ async function init() {
             }
         }
 
-        // Figure out which file to load based on the hash (#...)
         function handleRoute() {
             const hash = window.location.hash.replace('#', '').trim();
             
@@ -90,10 +86,8 @@ async function init() {
             }
         }
 
-        // Listen for user clicking back/forward or changing the hash manually
         window.onhashchange = handleRoute;
 
-        // Start the app
         init();
     </script>
 </body>
