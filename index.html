@@ -26,22 +26,22 @@
 
     <script>
         let manifestFiles = [];
-
-        async function init() {
+async function init() {
             try {
-                // 1. Load manifest.json
-                const res = await fetch('docs/manifest.json');
+                // Add a timestamp cache-buster so manifest.json is never cached
+                const cacheBuster = '?v=' + Date.now();
+                const res = await fetch('docs/manifest.json' + cacheBuster);
                 manifestFiles = await res.json();
                 
                 renderSidebar();
-                
-                // 2. Load initial file based on URL hash
                 handleRoute();
             } catch (err) {
                 document.getElementById('file-list').innerHTML = 'Error loading manifest.';
                 document.getElementById('markdown-viewer').innerHTML = 'Could not load documentation manifest.';
             }
         }
+
+
 
         function renderSidebar() {
             const listElement = document.getElementById('file-list');
@@ -62,7 +62,9 @@
 
         async function loadMarkdown(filename) {
             try {
-                const response = await fetch('docs/' + filename);
+                // Also add cache-busting here so your .md updates show up instantly
+                const cacheBuster = '?v=' + Date.now();
+                const response = await fetch('docs/' + filename + cacheBuster);
                 if (!response.ok) throw new Error("File not found");
                 const markdownText = await response.text();
                 document.getElementById('markdown-viewer').innerHTML = marked.parse(markdownText);
