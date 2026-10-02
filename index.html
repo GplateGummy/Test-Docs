@@ -1,10 +1,75 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>My First GitHub Page</title>
-  </head>
-  <body>
-    <h1>Hello, World!</h1>
-    <p>My GitHub Page is live!</p>
-  </body>
+<head>
+    <title>GplateGummy Docs</title>
+    <!-- Include Marked.js to convert Markdown into HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; margin: 0; }
+        #sidebar { width: 250px; background: #f4f4f4; padding: 20px; height: 100vh; overflow-y: auto; }
+        #content { padding: 40px; flex: 1; }
+        ul { padding-left: 20px; }
+        li { cursor: pointer; color: #0366d6; margin-bottom: 8px; }
+        li:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3>Documentation</h3>
+        <ul id="file-list">Loading files...</ul>
+    </div>
+
+    <div id="content">
+        <div id="markdown-viewer">Select a document from the sidebar.</div>
+    </div>
+
+    <script>
+        const owner = "GplateGummy";
+        const repo = "Test-Docs";
+        const folder = "docs";
+
+        // 1. Fetch the list of files from GitHub API
+        async function loadFileList() {
+            const apiURL = `https://api.github.com/repos/${owner}/${repo}/contents/${folder}`;
+            try {
+                const response = await fetch(apiURL);
+                const files = await response.json();
+                
+                const listElement = document.getElementById('file-list');
+                listElement.innerHTML = '';
+
+                // Filter for .md files and add them to the sidebar
+                files.filter(file => file.name.endsWith('.md')).forEach(file => {
+                    const li = document.createElement('li');
+                    li.textContent = file.name;
+                    li.onclick = () => loadMarkdown(file.download_url);
+                    listElement.appendChild(li);
+
+                    // Load index.md by default on startup
+                    if (file.name === 'index.md') {
+                        loadMarkdown(file.download_url);
+                    }
+                });
+            } catch (error) {
+                document.getElementById('file-list').innerHTML = 'Error loading file list.';
+            }
+        }
+
+        // 2. Fetch and render the selected Markdown file
+        async function loadMarkdown(url) {
+            try {
+                const response = await fetch(url);
+                const markdownText = await response.text();
+                // Convert Markdown to HTML using Marked.js and display it
+                document.getElementById('markdown-viewer').innerHTML = marked.parse(markdownText);
+            } catch (error) {
+                document.getElementById('markdown-viewer').innerHTML = 'Failed to load document content.';
+            }
+        }
+
+        // Run the function when the page loads
+        loadFileList();
+    </script>
+</body>
 </html>
