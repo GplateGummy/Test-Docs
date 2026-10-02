@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>GplateGummy Docs</title>
-    <!-- Include Marked.js to convert Markdown into HTML -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+    <!-- Fixed Marked.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
     <style>
         body { font-family: sans-serif; display: flex; margin: 0; }
         #sidebar { width: 250px; background: #f4f4f4; padding: 20px; height: 100vh; overflow-y: auto; }
-        #content { padding: 40px; flex: 1; }
+        #content { padding: 40px; flex: 1; max-width: 800px; line-height: 1.6; }
         ul { padding-left: 20px; }
         li { cursor: pointer; color: #0366d6; margin-bottom: 8px; }
         li:hover { text-decoration: underline; }
@@ -21,55 +22,100 @@
     </div>
 
     <div id="content">
-        <div id="markdown-viewer">Select a document from the sidebar.</div>
+        <div id="markdown-viewer">Loading document...</div>
     </div>
 
     <script>
-        const owner = "GplateGummy";
-        const repo = "Test-Docs";
-        const folder = "docs";
+        let manifestFiles = [];
 
-        // 1. Fetch the list of files from GitHub API
-        async function loadFileList() {
-            const apiURL = `https://api.github.com/repos/${owner}/${repo}/contents/${folder}`;
+        // Base repository path for GitHub Pages subfolder
+        // Change this if your repo name is different
+        const repoBase = '/Test-Docs'; 
+
+        async function init() {
             try {
-                const response = await fetch(apiURL);
-                const files = await response.json();
+                // 1. Load manifest.json
+                const res = await fetch('docs/manifest.json');
+                manifestFiles = await res.json();
                 
-                const listElement = document.getElementById('file-list');
-                listElement.innerHTML = '';
-
-                // Filter for .md files and add them to the sidebar
-                files.filter(file => file.name.endsWith('.md')).forEach(file => {
-                    const li = document.createElement('li');
-                    li.textContent = file.name;
-                    li.onclick = () => loadMarkdown(file.download_url);
-                    listElement.appendChild(li);
-
-                    // Load index.md by default on startup
-                    if (file.name === 'index.md') {
-                        loadMarkdown(file.download_url);
-                    }
-                });
-            } catch (error) {
-                document.getElementById('file-list').innerHTML = 'Error loading file list.';
+                renderSidebar();
+                
+                // 2. Determine which file to load based on current URL path
+                const filename = getFileFromUrl();
+                loadMarkdown(filename, false); // false = don't push state on initial load
+            } catch (err) {
+                document.getElementById('file-list').innerHTML = 'Error loading manifest.';
+                document.getElementById('markdown-viewer').innerHTML = 'Could not load documentation manifest.';
             }
         }
 
-        // 2. Fetch and render the selected Markdown file
-        async function loadMarkdown(url) {
+        function renderSidebar() {
+            const listElement = document.getElementById('file-list');
+            listElement.innerHTML = '';
+
+            manifestFiles.forEach(file => {
+                const docName = file.replace('.md', '');
+                const li = document.createElement('li');
+                li.textContent = docName;
+                
+                li.onclick = () => {
+                    loadMarkdown(file, true); // true = update URL
+                };
+                listElement.appendChild(li);
+            });
+        }
+
+        async function loadMarkdown(filename, pushState = true) {
+            // Fetch the markdown text file
             try {
-                const response = await fetch(url);
+                const response = await fetch('docs/' + filename);
+                if (!response.ok) throw new Error("File not found");
                 const markdownText = await response.text();
-                // Convert Markdown to HTML using Marked.js and display it
+                
+                // Convert Markdown to HTML using marked
                 document.getElementById('markdown-viewer').innerHTML = marked.parse(markdownText);
+
+                if (pushState) {
+                    // Update URL without refreshing page
+                    const docName = filename.replace('.md', '');
+                    let newUrl = repoBase + '/';
+                    if (docName !== 'index') {
+                        newUrl += docName;
+                    }
+                    history.pushState({ file: filename }, '', newUrl);
+                }
             } catch (error) {
-                document.getElementById('markdown-viewer').innerHTML = 'Failed to load document content.';
+                document.getElementById('markdown-viewer').innerHTML = '<h2>404</h2><p>Document not found.</p>';
             }
         }
 
-        // Run the function when the page loads
-        loadFileList();
+        // Figure out which file to load based on the browser URL
+        function getFileFromUrl() {
+            const path = window.location.pathname;
+            // Strip repo base and trailing/leading slashes
+            let route = path.replace(repoBase, '').replace(/^\/+|\/+$/g, '');
+            
+            if (!route || route === 'index') {
+                return 'index.md';
+            }
+            
+            // Match route to manifest file
+            const targetFile = route + '.md';
+            if (manifestFiles.includes(targetFile)) {
+                return targetFile;
+            }
+            
+            return 'index.md'; // Fallback
+        }
+
+        // Handle browser back/forward buttons
+        window.onpopstate = function() {
+            const filename = getFileFromUrl();
+            loadMarkdown(filename, false);
+        };
+
+        // Start the app
+        init();
     </script>
 </body>
 </html>
