@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>GplateGummy Docs</title>
-    <!-- Fixed Marked.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
     <style>
         body { font-family: sans-serif; display: flex; margin: 0; }
@@ -28,10 +27,6 @@
     <script>
         let manifestFiles = [];
 
-        // Base repository path for GitHub Pages subfolder
-        // Change this if your repo name is different
-        const repoBase = '/Test-Docs'; 
-
         async function init() {
             try {
                 // 1. Load manifest.json
@@ -40,9 +35,8 @@
                 
                 renderSidebar();
                 
-                // 2. Determine which file to load based on current URL path
-                const filename = getFileFromUrl();
-                loadMarkdown(filename, false); // false = don't push state on initial load
+                // 2. Load initial file based on URL hash
+                handleRoute();
             } catch (err) {
                 document.getElementById('file-list').innerHTML = 'Error loading manifest.';
                 document.getElementById('markdown-viewer').innerHTML = 'Could not load documentation manifest.';
@@ -58,61 +52,44 @@
                 const li = document.createElement('li');
                 li.textContent = docName;
                 
+                // Clicking updates the hash (e.g., #getting-started)
                 li.onclick = () => {
-                    loadMarkdown(file, true); // true = update URL
+                    window.location.hash = docName === 'index' ? '' : docName;
                 };
                 listElement.appendChild(li);
             });
         }
 
-        async function loadMarkdown(filename, pushState = true) {
-            // Fetch the markdown text file
+        async function loadMarkdown(filename) {
             try {
                 const response = await fetch('docs/' + filename);
                 if (!response.ok) throw new Error("File not found");
                 const markdownText = await response.text();
-                
-                // Convert Markdown to HTML using marked
                 document.getElementById('markdown-viewer').innerHTML = marked.parse(markdownText);
-
-                if (pushState) {
-                    // Update URL without refreshing page
-                    const docName = filename.replace('.md', '');
-                    let newUrl = repoBase + '/';
-                    if (docName !== 'index') {
-                        newUrl += docName;
-                    }
-                    history.pushState({ file: filename }, '', newUrl);
-                }
             } catch (error) {
                 document.getElementById('markdown-viewer').innerHTML = '<h2>404</h2><p>Document not found.</p>';
             }
         }
 
-        // Figure out which file to load based on the browser URL
-        function getFileFromUrl() {
-            const path = window.location.pathname;
-            // Strip repo base and trailing/leading slashes
-            let route = path.replace(repoBase, '').replace(/^\/+|\/+$/g, '');
+        // Figure out which file to load based on the hash (#...)
+        function handleRoute() {
+            const hash = window.location.hash.replace('#', '').trim();
             
-            if (!route || route === 'index') {
-                return 'index.md';
+            if (!hash || hash === 'index') {
+                loadMarkdown('index.md');
+                return;
             }
-            
-            // Match route to manifest file
-            const targetFile = route + '.md';
+
+            const targetFile = hash + '.md';
             if (manifestFiles.includes(targetFile)) {
-                return targetFile;
+                loadMarkdown(targetFile);
+            } else {
+                document.getElementById('markdown-viewer').innerHTML = '<h2>404</h2><p>Page not found in manifest.</p>';
             }
-            
-            return 'index.md'; // Fallback
         }
 
-        // Handle browser back/forward buttons
-        window.onpopstate = function() {
-            const filename = getFileFromUrl();
-            loadMarkdown(filename, false);
-        };
+        // Listen for user clicking back/forward or changing the hash manually
+        window.onhashchange = handleRoute;
 
         // Start the app
         init();
